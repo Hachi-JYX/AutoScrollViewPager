@@ -34,13 +34,14 @@ public class MainActivity extends AppCompatActivity {
         textView = (TextView) findViewById(R.id.tv);
         layoutDot = (LinearLayout) findViewById(R.id.ll_dot);
         autoScrollViewPager.setLooping(true);
-        autoScrollViewPager.setTitle(strings,textView);
+        autoScrollViewPager.setTitles(strings,textView);
         autoScrollViewPager.setImgUrl(img);
+        autoScrollViewPager.setDelayTime(2000);
         autoScrollViewPager.init(4,layoutDot);
-        autoScrollViewPager.setItemClickListener(new AutoScrollViewPager.OnViewItemClickListener() {
+        autoScrollViewPager.setOnItemClickListener(new AutoScrollViewPager.OnItemClickListener() {
             @Override
-            public void onItemClick() {
-                Toast.makeText(getBaseContext(),"点击了",Toast.LENGTH_SHORT).show();
+            public void onItemClick(int postion) {
+                Toast.makeText(getBaseContext(),"点击了"+postion,Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -55,6 +56,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        autoScrollViewPager.stopscoll();
+        autoScrollViewPager.stopScroll();
     }
 }

@@ -20,54 +20,53 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Created by akitajyx on 2016/5/24.
+ * 自定义轮播条控件
  */
 public class AutoScrollViewPager extends ViewPager {
-
-    private int pageCount = 2;//默认页数为2
-    private List<ImageView> dotImg = new ArrayList<>();
-    private List<String> title = null;
-    private List<String> imgUrl = null;
-    private TextView textView;
-    private int currentPageIndex = 0;
-    private boolean isLooping = false;//是否支持无限滑动，默认不支持
-    private int delayDuration = 3000;
-    private OnViewItemClickListener itemClickListener;
+    private int pageCount = 2;//页面最少为2页
+    private int currentIndex = 0;
+    private List<String> imgUrl;//图片链接
+    private List<String> titles;//标题链接
+    private List<ImageView> dots = new ArrayList<>();//指示器的集合
+    private TextView textView;//标题控件
+    private boolean isLooping = false;//是否支持无限轮播
+    private int delayTime = 3000;//轮播的间隔时间
+    private  OnItemClickListener onItemClickListener;
     private Handler mHandler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
             if (msg.what == 1){
-                Log.d("TAG","切换到下一页");
-                //切换到下一页
-                int curr = getCurrentItem();
-                ++curr;
-                setCurrentItem(curr);
+                int index = getCurrentItem();
+                index++;
+                setCurrentItem(index);
 
-                //循环发送消息实现自动轮播
                 Message msg2 = Message.obtain();
-                msg2.what = 1;
-                mHandler.sendMessageDelayed(msg2,delayDuration);
+                msg2.what=1;
+                mHandler.sendMessageDelayed(msg2,delayTime);
             }
         }
     };
-    private ImageCache imageCache;
 
-    public void setItemClickListener(OnViewItemClickListener itemClickListener) {
-        this.itemClickListener = itemClickListener;
+    public interface OnItemClickListener{
+        void onItemClick(int postion);
     }
 
-    public void setDelayDuration(int delayDuration) {
-        this.delayDuration = delayDuration;
+    public void setOnItemClickListener(OnItemClickListener onItemClickListener) {
+        this.onItemClickListener = onItemClickListener;
     }
 
     public void setImgUrl(List<String> imgUrl) {
         this.imgUrl = imgUrl;
     }
 
-    public void setTitle(List<String> title, TextView textView) {
-        this.title = title;
+    public void setTitles(List<String> titles,TextView textView) {
+        this.titles = titles;
         this.textView = textView;
-        this.textView.setText(title.get(0));
+        this.textView.setText(titles.get(0));
+    }
+
+    public void setDelayTime(int delayTime) {
+        this.delayTime = delayTime;
     }
 
     public void setLooping(boolean looping) {
@@ -80,63 +79,54 @@ public class AutoScrollViewPager extends ViewPager {
 
     public AutoScrollViewPager(Context context, AttributeSet attrs) {
         super(context, attrs);
-        imageCache = new ImageCache(getContext());
     }
 
-    public void init(int pageNumber, LinearLayout layoutDot) {
-        pageCount = pageNumber;
-
-        //根据页面数动态创建指示器
+    public void init(int pageNum, LinearLayout layout){
+        this.pageCount = pageNum;//获得总页数
+        //动态生成指示器的元素
         for (int i = 0; i < pageCount; i++) {
             ImageView imageView = new ImageView(getContext());
             imageView.setBackgroundResource(R.drawable.dot_selector);
-            //配置点的参数
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT);
-            //添加点与点之间的间距
-            params.rightMargin = 6;
-            layoutDot.addView(imageView,params);
-            dotImg.add(imageView);
+            params.rightMargin = 8;
+            layout.addView(imageView,params);
+            dots.add(imageView);
         }
-        dotImg.get(0).setSelected(true);
-
-        //设置适配器
-        PagerAdapter adapter = new ImageViewAdapter();
+        dots.get(0).setSelected(true);//设置第一个点默认选中
+        PagerAdapter adapter = new MyPagerAdapter();
+        this.setOnPageChangeListener(new PageScrollListener());
         this.setAdapter(adapter);
-        this.setOnPageChangeListener(new PageChangeListener());
     }
 
-    //开启自动轮播
     public void startScroll(){
-        Message message = Message.obtain();
-        message.what = 1;
-        mHandler.sendMessageDelayed(message,delayDuration);
+        Message msg = Message.obtain();
+        msg.what=1;
+        mHandler.sendMessageDelayed(msg,delayTime);
     }
-    //停止自动轮播
-    public void stopscoll(){
-        //清除所有消息
+
+    public void stopScroll(){
+        //清除所有的消息
         mHandler.removeCallbacksAndMessages(null);
     }
 
-    class PageChangeListener implements OnPageChangeListener {
+    class PageScrollListener implements OnPageChangeListener{
 
         @Override
         public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
 
         }
-        //滑动到第i页
+
         @Override
         public void onPageSelected(int position) {
-            //更新旧点的状态
-            dotImg.get(currentPageIndex%pageCount).setSelected(false);
-            currentPageIndex = position;
-            //更新新点的状态
-            dotImg.get(currentPageIndex%pageCount).setSelected(true);
-            if (textView!=null && title!=null){
-                textView.setText(title.get(currentPageIndex%pageCount));
-            }
+            dots.get(currentIndex % pageCount).setSelected(false);
+            currentIndex = position;
+            dots.get(currentIndex % pageCount).setSelected(true);
 
+            if (titles!=null && textView!=null){
+                textView.setText(titles.get(currentIndex % pageCount));
+            }
         }
 
         @Override
@@ -145,50 +135,44 @@ public class AutoScrollViewPager extends ViewPager {
         }
     }
 
-    class ImageOnTouchListener implements OnTouchListener{
+    class PageOntouchEvent implements OnTouchListener{
 
-        private int down=0;
-        private long downtime=0;
+        int downx=0;
+        long downTime=0;
         @Override
         public boolean onTouch(View v, MotionEvent event) {
-
             switch (event.getAction()){
                 case MotionEvent.ACTION_DOWN:
-                    stopscoll();
-                    down = (int) getX();
-                    downtime = System.currentTimeMillis();
-                    Log.d("TAG","ACTION_DOWN");
+                    stopScroll();
+                    downx = (int) getX();
+                    downTime = System.currentTimeMillis();
                     break;
                 case MotionEvent.ACTION_MOVE:
-                    Log.d("TAG","ACTION_MOVE");
                     break;
                 case MotionEvent.ACTION_UP:
-                    Log.d("TAG","ACTION_UP");
-                    int up = (int) getX();
-                    if (down == up && System.currentTimeMillis()-downtime<300){
-                        if (itemClickListener!=null){
-                            Log.d("TAG","点击了");
-                            itemClickListener.onItemClick();
+                    int upx = (int) getX();
+                    if (upx==downx && System.currentTimeMillis() - downTime<300){
+                        if (onItemClickListener!=null){
+                            onItemClickListener.onItemClick(currentIndex % pageCount);
                         }
                     }
+                    startScroll();
                     break;
                 case MotionEvent.ACTION_CANCEL:
-                    Log.d("TAG","ACTION_CANCEL");
                     startScroll();
                     break;
             }
             return true;
         }
     }
-
-    private class ImageViewAdapter extends PagerAdapter{
+    class MyPagerAdapter extends PagerAdapter{
 
         @Override
         public int getCount() {
             if (isLooping){
                 return Integer.MAX_VALUE;
             }else {
-                return pageCount;
+                return imgUrl.size();
             }
         }
 
@@ -199,20 +183,16 @@ public class AutoScrollViewPager extends ViewPager {
 
         @Override
         public Object instantiateItem(ViewGroup container, int position) {
-            //创建显示的图片
             ImageView imageView = new ImageView(getContext());
             imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-            ViewPager.LayoutParams params = new ViewPager.LayoutParams();
-            params.width = LayoutParams.MATCH_PARENT;
+            ViewPager.LayoutParams params = new LayoutParams();
             params.height = LayoutParams.MATCH_PARENT;
-            if (imgUrl!=null && imgUrl.size()>0){
-                Log.d("TAG",imgUrl.get(position%pageCount));
-                imageCache.disPlayImage(imageView,imgUrl.get(position%pageCount));
-                //Glide.with(getContext()).load(imgUrl.get(position%pageCount)).into(imageView);
+            params.width = LayoutParams.MATCH_PARENT;
+            if (imgUrl!=null){
+                Glide.with(getContext()).load(imgUrl.get(position % pageCount)).into(imageView);
             }
             container.addView(imageView,params);
-
-            imageView.setOnTouchListener(new ImageOnTouchListener());
+            imageView.setOnTouchListener(new PageOntouchEvent());
             return imageView;
         }
 
@@ -222,7 +202,4 @@ public class AutoScrollViewPager extends ViewPager {
         }
     }
 
-    public static interface OnViewItemClickListener{
-        void onItemClick();
-    }
 }

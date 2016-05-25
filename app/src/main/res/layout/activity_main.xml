@@ -9,7 +9,7 @@
         android:id="@+id/auto"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#47659E">
+        android:background="#ffffff">
     </com.dmzj.akitajyx.autoscrollviewpager.AutoScrollViewPager>
     <LinearLayout
         android:layout_width="match_parent"
@@ -22,7 +22,6 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="我是新闻的大标题"
             android:textColor="#ffffff"
             android:textSize="18sp"
             android:layout_gravity="center_vertical"
